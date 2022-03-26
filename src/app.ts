@@ -1,44 +1,17 @@
-import amqp from 'amqplib';
 import Koa from 'koa';
+import cors from '@koa/cors';
 import helmet from 'koa-helmet';
 import Router from 'koa-router';
 import { errorHandler } from './middleware/error-handler';
-
-const host = 'amqp://localhost';
-const exchange = 'events';
-const queue = 'events-sse';
-
-async function createQueueClient(callback?: ({ event, payload }: { event: string; payload: any }) => void) {
-  const connection = await amqp.connect(host);
-  const channel = await connection.createChannel();
-
-  await channel.assertExchange(exchange, 'fanout', { durable: true });
-
-  const assertQueue = await channel.assertQueue(queue, { durable: true });
-  await channel.bindQueue(assertQueue.queue, exchange, '');
-  await channel.prefetch(1);
-  await channel.consume(
-    assertQueue.queue,
-    (msg) => {
-      if (msg === null) {
-        return;
-      }
-
-      if (callback) {
-        callback(JSON.parse(msg.content.toString()));
-      }
-
-      channel.ack(msg);
-    },
-    { noAck: false }
-  );
-}
+import { SSEController } from './controllers/sse-controllers';
+import { createQueueClient } from './queue';
 
 export function createApp() {
-  createQueueClient();
+  const sseController = new SSEController();
+  createQueueClient(({ event, payload }) => sseController.broadcast(event, payload));
 
   const router = new Router();
-  router.get('/sse', (ctx) => (ctx.body = 'Howdy world!'));
+  router.get('/sse', sseController.index);
 
   const app = new Koa();
   app.use(helmet.contentSecurityPolicy());
@@ -46,6 +19,7 @@ export function createApp() {
   app.use(helmet.noSniff());
   app.use(helmet.dnsPrefetchControl());
   app.use(helmet.hidePoweredBy());
+  app.use(cors());
   app.use(errorHandler());
   app.use(router.routes());
   app.use(router.allowedMethods());
