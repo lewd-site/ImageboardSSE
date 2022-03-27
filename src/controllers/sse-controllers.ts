@@ -6,13 +6,21 @@ interface SSEClient {
   readonly stream: PassThrough;
 }
 
+const KEEPALIVE_INTERVAL = 30000;
+
 export class SSEController {
   protected nextClientId = 1;
   protected clients: SSEClient[] = [];
 
   protected nextMessageId = 1;
 
-  public constructor() {}
+  public constructor() {
+    setInterval(() => {
+      this.clients.forEach((client) => {
+        client.stream.write(`:keepalive\n\n`);
+      });
+    }, KEEPALIVE_INTERVAL);
+  }
 
   public index = async (ctx: Koa.Context) => {
     ctx.request.socket.setTimeout(0);
@@ -23,8 +31,10 @@ export class SSEController {
     ctx.set('Content-Type', 'text/event-stream');
     ctx.set('Cache-Control', 'no-cache');
     ctx.set('Connection', 'keep-alive');
+    ctx.set('X-Accel-Buffering', 'no');
 
     ctx.status = 200;
+    ctx.flushHeaders();
 
     const stream = new PassThrough();
     ctx.body = stream;
