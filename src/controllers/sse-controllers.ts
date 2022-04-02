@@ -37,6 +37,7 @@ export class SSEController {
     ctx.flushHeaders();
 
     const stream = new PassThrough();
+    stream.write(`:keepalive\n\n`);
     ctx.body = stream;
 
     const id = this.nextClientId++;
