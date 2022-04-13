@@ -1,4 +1,3 @@
-const webpack = require('webpack');
 const path = require('path');
 
 module.exports = {
@@ -27,5 +26,5 @@ module.exports = {
     'koa-router': 'commonjs koa-router',
     'koa-helmet': 'commonjs koa-helmet',
   },
-  plugins: [new webpack.ProgressPlugin()],
+  plugins: [],
 };
